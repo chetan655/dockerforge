@@ -62,8 +62,8 @@ def get_agent():
     ]
 
     model = ChatGroq(
-        # model="llama-3.3-70b-versatile",
-        model="openai/gpt-oss-120b",
+        model="llama-3.3-70b-versatile",
+        # model="openai/gpt-oss-120b",
         temperature=0.0,
         groq_api_key=api_key
     )
@@ -91,12 +91,10 @@ async def run_agent(repo_path: str) -> str:
         final_output = ""
 
         async for chunk, metadata in agent.astream(inputs, stream_mode="messages"):
-            # 1. Capture agent operations
             if isinstance(chunk, (AIMessage, AIMessageChunk)):
                 if chunk.content:
                     final_output += chunk.content
                     
-                # Instead of printing raw JSON tool calls, print clean, user-friendly statuses
                 if chunk.tool_calls:
                     for tool_call in chunk.tool_calls:
                         tool_name = tool_call["name"]

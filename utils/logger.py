@@ -13,7 +13,8 @@ def get_logger(name: str = "dockerforge") -> logging.Logger:
             markup=True,
             show_path=False
         )
-        console_handler.setLevel(logging.INFO)
+        # console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.WARNING)
         console_formatter = logging.Formatter("%(message)s")
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
