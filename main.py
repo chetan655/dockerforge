@@ -6,6 +6,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt
 from rich.syntax import Syntax
+import docker
 
 from utils.git_utils import clone_repo
 from utils.logger import logger
@@ -48,6 +49,16 @@ def extract_dockerfile(text: str) -> str:
 
 def main():
     print_banner()
+
+    try:
+        client = docker.from_env()
+        client.ping()
+    except Exception:
+        console.print("\n[bold red]Error: Docker daemon is not running.[/bold red]")
+        console.print("[yellow]Please start Docker (eg., run `sudo systemctl start docker` or open Docker Desktop) and try again. \n[/yellow]")
+        sys.exit(1)
+
+        
     
     # 1. Get repository URL from user
     repo_url = Prompt.ask("[bold white]Enter public GitHub Repository URL[/bold white]")
