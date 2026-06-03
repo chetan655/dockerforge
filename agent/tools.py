@@ -131,9 +131,23 @@ def build_docker_image_tool(repo_path: str, tag: str = "dockerforge-temp:latest"
     success, logs = build_docker_image(repo_path, tag)
 
     if success:
-        return f"SUCCESS: Docker image built successfully. Tag: {tag}\nBuild Logs:\n{logs}"
+        return f"SUCCESS: Docker image built successfully. Tag: {tag}"
     else:
-        return f"FAILURE: Docker build failed. You must analyze these logs and fix the Dockerfile:\n{logs}"
+        noisy_prefixes = (
+            "Get:", "Hit:", "Unpacking", "Selecting", "Preparing", "Setting up", "Reading database", "Requirement already satisfied:", "Downloading"
+        )
+
+        cleaned_lines = []
+        for line in logs.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if any(stripped.startswith(p) for p in noisy_prefixes):
+                continue
+            cleaned_lines.append(line)
+
+        log_summary = "\n".join(cleaned_lines[-100:])
+        return f"FAILURE: Docker build failed. You must analyze these logs and fix the Dockerfile:\n{log_summary}"
 
 @tool
 def verify_container_tool(tag: str = "dockerforge-temp:latest") -> str:

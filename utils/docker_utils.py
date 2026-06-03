@@ -4,48 +4,100 @@ from typing import Any
 
 from utils.logger import logger
 
+# def build_docker_image(repo_dir: str, tag: str = "dockerforge-temp:latest") -> tuple[bool, str]:
+#     """Builds a docker image in the specified dir.
+    
+#     Returns:
+#         (boo, str): (True, 'Success msg') if build succeeds
+#         (False, 'error msg') on failure
+#     """
+
+#     client = docker.from_env()
+#     logger.info(f"Starting docker build with tag: [cyan]{tag}[/cyan]")
+
+#     try:
+#         image, build_logs = client.images.build(
+#             path=repo_dir,
+#             tag=tag,
+#             rm=True,
+#             forcerm=True
+#         )
+
+#         logs = []
+#         for log in build_logs:
+#             if "stream" in log:
+#                 logs.append(log["stream"].strip())
+
+#         logger.info(f"[green]Docker build successfully: {tag}[/green]")
+#         return True, "\n".join(logs)
+    
+#     except docker.errors.BuildError as e:
+#         error_log = []
+#         for log in e.build_log:
+#             if "stream" in log:
+#                 error_log.append(log["stream"].strip())
+#             elif "error" in log:
+#                 error_log.append(log["error"].strip())
+
+#         error_msg = "\n".join(error_log)
+#         logger.error(f"[red]Docker build failed for {tag}[/red]")
+#         return False, error_msg
+
+#     except Exception as e:
+#         logger.error(f"Unexpected error during build: {e}")
+#         return False, str(e)
+
+
 def build_docker_image(repo_dir: str, tag: str = "dockerforge-temp:latest") -> tuple[bool, str]:
-    """Builds a docker image in the specified dir.
+    """
+    Builds a Docker image in the specified directory and streams the compilation logs
+    live to the terminal in real-time.
     
     Returns:
-        (boo, str): (True, 'Success msg') if build succeeds
-        (False, 'error msg') on failure
+        (bool, str): (True, "Success message") if build succeeds, 
+                     (False, "Error log") if build fails.
     """
-
     client = docker.from_env()
-    logger.info(f"Starting docker build with tag: [cyan]{tag}[/cyan]")
-
+    logger.info(f"Starting Docker build with tag: [cyan]{tag}[/cyan]...")
+    
     try:
-        image, build_logs = client.images.build(
+        # Use client.api.build to get a real-time generator of build events
+        log_generator = client.api.build(
             path=repo_dir,
             tag=tag,
-            rm=True,
-            forcerm=True
+            rm=True,          # Remove intermediate containers
+            forcerm=True,     # Always remove intermediate containers
+            decode=True       # Automatically decode JSON responses into dicts
         )
-
+        
         logs = []
-        for log in build_logs:
-            if "stream" in log:
-                logs.append(log["stream"].strip())
-
-        logger.info(f"[green]Docker build successfully: {tag}[/green]")
-        return True, "\n".join(logs)
-    
-    except docker.errors.BuildError as e:
-        error_log = []
-        for log in e.build_log:
-            if "stream" in log:
-                error_log.append(log["stream"].strip())
-            elif "error" in log:
-                error_log.append(log["error"].strip())
-
-        error_msg = "\n".join(error_log)
-        logger.error(f"[red]Docker build failed for {tag}[/red]")
-        return False, error_msg
-
+        for chunk in log_generator:
+            # Check for standard build output streams
+            if 'stream' in chunk:
+                line = chunk['stream'].strip()
+                if line:
+                    # Print the compiler progress line immediately
+                    print(f"  [dim]{line}[/dim]", flush=True)
+                    logs.append(line)
+            # Check for build errors
+            elif 'error' in chunk:
+                error_line = chunk['error'].strip()
+                print(f"  [bold red]✖ {error_line}[/bold red]", flush=True)
+                logs.append(error_line)
+                
+        # Verify if the image was successfully built and registered in local daemon
+        try:
+            client.images.get(tag)
+            logger.info(f"[green]Docker build succeeded for {tag}[/green]")
+            return True, "\n".join(logs)
+        except docker.errors.ImageNotFound:
+            logger.error(f"[red]Docker build failed for {tag}[/red]")
+            return False, "\n".join(logs)
+            
     except Exception as e:
-        logger.error(f"Unexpected error during build: {e}")
+        logger.error(f"Unexpected error during Docker build: {e}")
         return False, str(e)
+
 
         
 
@@ -69,9 +121,15 @@ def run_and_verify_container(tag: str = "dockerforge-temp:latest", run_duration_
 
         container.reload()
         state = container.status
-
-        logs = container.logs().decode("utf-8", errors="ignore")
-
+        # Try to read logs, but catch log-driver errors gracefully
+        try:
+            logs = container.logs().decode("utf-8", errors="ignore")
+        except docker.errors.APIError as e:
+            if "configured logging driver does not support reading" in str(e):
+                logs = "(Logs are unavailable because the host Docker logging driver does not support reading.)"
+            else:
+                raise e
+        # If the container is running or exited cleanly, it is a success!
         if state == "running" or container.attrs['State']['ExitCode'] == 0:
             logger.info(f"[green]Container started successfully. Status: {state}[/green]")
             return True, logs
