@@ -71,16 +71,31 @@ def read_file_content(repo_path: str, rel_path: str) -> str:
     if not os.path.exists(full_path):
         return f"Error: File not found: {rel_path}"
     
+    filename = os.path.basename(rel_path).lower()
+    lock_files = {
+        "package-lock.json", "yarn.lock", "pnpm-lock.yaml", 
+        "uv.lock", "poetry.lock", "cargo.lock", "go.sum", 
+        "gemfile.lock", "composer.lock"
+    }
+    if filename in lock_files:
+        return (
+            f"Note: '{rel_path}' is a lockfile. To save token usage, its contents are not printed. "
+            f"You can assume it exists and copy it in your Dockerfile to optimize layer caching. "
+            f"Please read the main configuration files (like package.json, pyproject.toml, requirements.txt, go.mod) "
+            f"to understand direct dependencies, or inspect source code files to see imports."
+        )
+    
     try:
         with open(full_path, 'r', encoding='utf-8') as f:
-            content = f.read(262144)
-            if len(content) == 262144:
+            content = f.read(50000)  # Cap at 50KB (approx 12k tokens)
+            if len(content) == 50000:
                 content += "\n... [Truncated due to size]..."
             
             return content
 
     except Exception as e:
         return f"Error reading file `{rel_path}`: {str(e)}"
+
 
 
 @tool

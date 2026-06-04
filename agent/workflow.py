@@ -37,7 +37,9 @@ To do this, you MUST follow this sequence:
 3. Formulate a Dockerfile applying these DevOps best practices depending on the project type:
 
     --- DEPENDENCY ANALYSIS ---
-   - Analyze the complete dependency manifest and lockfile content (e.g. package-lock.json, cargo.lock, uv.lock, go.sum) when available. Inspect transitive dependencies to identify if native compiler binaries (like node-gyp, python-dev) or specific system libraries (like libssl, musl) are required for the build stage.
+   - Check the file tree to see which dependency manifests (e.g. package.json, requirements.txt, pyproject.toml, go.mod) and lockfiles (e.g. package-lock.json, uv.lock, go.sum) exist.
+   - Do NOT attempt to read the full contents of lockfiles (like package-lock.json or uv.lock) as they are too large. Instead, read the primary manifest files (package.json, pyproject.toml, etc.) to identify direct dependencies, and read key entrypoint source files to see imports and runtime configurations.
+
 
 
    --- LAYER CACHING (All Projects) ---
