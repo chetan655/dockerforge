@@ -6,6 +6,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt
 from rich.syntax import Syntax
+from rich.align import Align
 import docker
 
 from utils.git_utils import clone_repo
@@ -17,21 +18,41 @@ console = Console()
 
 def print_banner():
     """Prints a beautiful, premium console banner for DockerForge."""
-    banner_text = Text()
-    banner_text.append("█▀▀▄ █▀▀█ █▀▀ █░█ █▀▀ █▀▀█ █▀▀ █▀▀█ █▀▀█ █▀▀█ █▀▀\n", style="bold cyan")
-    banner_text.append("█░░█ █░░█ █░░ █▀▄ █▀▀ █▄▄▀ █▀▀ █░░█ █▄▄▀ █░░█ █▀▀\n", style="bold blue")
-    banner_text.append("▀▀▀░ ▀▀▀▀ ▀▀▀ ▀░▀ ▀▀▀ ▀░▀▀ ▀░░ ▀▀▀▀ ▀░▀▀ █▀▀▀ ▀▀▀\n", style="bold magenta")
-    banner_text.append("   ★ AI-Powered Dockerfile Generator & Verifier ★   \n", style="bold italic yellow")
+    # banner_text = Text()
+    # banner_text.append("█▀▀▄ █▀▀█ █▀▀ █░█ █▀▀ █▀▀█ █▀▀ █▀▀█ █▀▀█ █▀▀█ █▀▀\n", style="bold cyan")
+    # banner_text.append("█░░█ █░░█ █░░ █▀▄ █▀▀ █▄▄▀ █▀▀ █░░█ █▄▄▀ █░░█ █▀▀\n", style="bold blue")
+    # banner_text.append("▀▀▀░ ▀▀▀▀ ▀▀▀ ▀░▀ ▀▀▀ ▀░▀▀ ▀░░ ▀▀▀▀ ▀░▀▀ █▀▀▀ ▀▀▀\n", style="bold magenta")
+    # banner_text.append("   ★ AI-Powered Dockerfile Generator & Verifier ★   \n", style="bold italic yellow")
     
-    panel = Panel(
-        banner_text,
+    # panel = Panel(
+    #     banner_text,
+    #     border_style="cyan",
+    #     title="[bold white]v1.0.0[/bold white]",
+    #     title_align="right",
+    #     subtitle_align="center"
+    # )
+    # console.print(panel)
+
+    banner = r"""
+
+██████╗      ██████╗      ██████╗ ██╗  ██╗ ███████╗ ██████╗ ███████╗  ██████╗  ██████╗  ██████╗ ███████╗
+██╔══██╗    ██╔═══██╗    ██╔════╝ ██║ ██╔╝ ██╔════╝ ██╔══██╗ ██╔════╝ ██╔═══██╗ ██╔══██╗ ██╔════╝ ██╔════╝
+██║  ██║    ██║   ██║    ██║      █████╔╝  █████╗   ██████╔╝ █████╗   ██║   ██║ ██████╔╝ ██║  ███╗█████╗
+██║  ██║    ██║   ██║    ██║      ██╔═██╗  ██╔══╝   ██╔══██╗ ██╔══╝   ██║   ██║ ██╔══██╗ ██║   ██║██╔══╝
+██████╔╝    ╚██████╔╝    ╚██████╗ ██║  ██╗ ███████╗ ██║  ██║ ██║      ╚██████╔╝ ██║  ██║ ╚██████╔╝███████╗
+╚═════╝      ╚═════╝      ╚═════╝ ╚═╝  ╚═╝ ╚══════╝ ╚═╝  ╚═╝ ╚═╝       ╚═════╝  ╚═╝  ╚═╝  ╚═════╝ ╚══════╝
+
+                           AI-Powered Dockerfile Generator & Verifier
+
+"""
+
+    console.print(
+    Panel(
+        banner,
         border_style="cyan",
-        title="[bold white]v1.0.0[/bold white]",
-        title_align="right",
-        subtitle="[dim white]Built for DevOps & Agentic AI[/dim white]",
-        subtitle_align="center"
+        title="v1.0.0"
     )
-    console.print(panel)
+)
 
 def extract_dockerfile(text: str) -> str:
     """Extracts the Dockerfile contents from markdown code blocks in the agent response."""
@@ -58,7 +79,7 @@ def main():
         console.print("[yellow]Please start Docker (eg., run `sudo systemctl start docker` or open Docker Desktop) and try again. \n[/yellow]")
         sys.exit(1)
 
-        
+
     
     # 1. Get repository URL from user
     repo_url = Prompt.ask("[bold white]Enter public GitHub Repository URL[/bold white]")

@@ -5,7 +5,8 @@ from rich.console import Console
 console = Console()
 
 from langchain.agents import create_agent
-from langchain_groq import ChatGroq
+# from langchain_groq import ChatGroq
+from langchain_openrouter import ChatOpenRouter
 from langchain_core.messages import HumanMessage, AIMessageChunk, AIMessage, ToolMessage
 
 from agent.tools import (
@@ -87,14 +88,18 @@ def get_agent():
         verify_container_tool
     ]
 
-    model = ChatGroq(
-        # model="llama-3.3-70b-versatile",
-        # model="openai/gpt-oss-120b",
-        # model="openai/gpt-oss-20b",
-        model="qwen/qwen3-32b",
-        temperature=0.0,
-        groq_api_key=api_key
-    )
+    # model = ChatGroq(
+    #     # model="llama-3.3-70b-versatile",
+    #     # model="openai/gpt-oss-120b",
+    #     # model="openai/gpt-oss-20b",
+    #     model="qwen/qwen3-32b",
+    #     temperature=0.0,
+    #     groq_api_key=api_key
+    # )
+    model = ChatOpenRouter(
+    model="deepseek/deepseek-v4-flash",
+    temperature=0.8,
+)
 
     agent = create_agent(
         model=model,
