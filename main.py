@@ -1,5 +1,6 @@
 import sys
 import re
+import os
 import asyncio
 from rich.console import Console
 from rich.panel import Panel
@@ -81,7 +82,6 @@ def main():
 
 
     
-    # 1. Get repository URL from user
     repo_url = Prompt.ask("[bold white]Enter public GitHub Repository URL[/bold white]")
     repo_url = repo_url.strip()
     
@@ -97,6 +97,17 @@ def main():
             local_path = clone_repo(repo_url)
             
         console.print(f"[green]✔ Repository cloned successfully to:[/] [cyan]{local_path}[/]\n")
+
+        # add monorepo/subdir prompt
+        target_subdir = Prompt.ask("[bold white]Enter target subdirectory/service (optional, press Enter for root)[/bold white]")
+        target_subdir = target_subdir.strip()
+        
+        analysis_path = local_path
+        if target_subdir:
+            analysis_path = os.path.abspath(os.path.join(local_path, target_subdir))
+            if not analysis_path.startswith(os.path.abspath(local_path)) or not os.path.exists(analysis_path):
+                console.print("[bold red]Error: Subdirectory does not exis inside the repository.[/bold red]")
+                sys.exit(1)
         
         # 3. Invoke the LangGraph Agent to generate and verify the Dockerfile
         # This will stream its node outputs automatically via workflow.py

@@ -20,7 +20,7 @@ def analyze_repo(repo_path: str) -> str:
     if not os.path.exists(repo_path):
         return f"Error: Repository path `{repo_path}` does not exist."
 
-    tree = generate_file_tree(repo_path)
+    tree = generate_file_tree(repo_path, max_depth=6)
     tree_str = "\n".join(tree)
 
     analysis = detect_languages_and_configs(repo_path)
@@ -73,8 +73,8 @@ def read_file_content(repo_path: str, rel_path: str) -> str:
     
     try:
         with open(full_path, 'r', encoding='utf-8') as f:
-            content = f.read(8192)
-            if len(content) == 8192:
+            content = f.read(262144)
+            if len(content) == 262144:
                 content += "\n... [Truncated due to size]..."
             
             return content
@@ -168,3 +168,25 @@ def verify_container_tool(tag: str = "dockerforge-temp:latest") -> str:
     else:
         return f"FAILURE: Container crashed or failed on startup. Analyze these logs to fix the Dockerfile or startup command:\n{logs}"
 
+
+
+@tool
+def write_docker_compose_to_disk(repo_path: str, content: str) -> str:
+    """
+    Writes a generated docker-compose.yml configuration to the root of the repository.
+    
+    Args:
+        repo_path (str): The absolute local path to the cloned respository.
+        content (str): The complete string content of the docker-compose.yml
+    """
+
+    logger.info(f"Tool[cyan] write_docker_compose_to_disk[/cyan] called.")
+    compose_path = os.path.join(repo_path, "docker-compose.yml")
+    try:
+        with open(compose_path, "w", encoding="UTF-8") as f:
+            f.write(content)
+        
+        return f"Successfully wrote docker-compose.yml to {compose_path}"
+
+    except Exception as e:
+        return f"Error writing docker-compose.yml: {str(e)}"

@@ -6,8 +6,54 @@ from utils.logger import logger
 IGNORE_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".pytest_cache", "dist", "build", ".claude", ".cursor", ".idea", "*.log", ".env", ".env.example"}
 IGNORE_FILES = {".DS_Store", "Thumbs.db", "*.swp", "*.swo", "*.bak", "*.pyc", "*.pyo", "*.pyd", "dockerforge.log", "*.log"}
 
-def generate_file_tree(start_dir: str, current_dir: str = "", depth: int = 0, max_depth: int = 3) -> list[str]:
-    """Recursively builds a tree representation of the codebase."""
+# def generate_file_tree(start_dir: str, current_dir: str = "", depth: int = 0, max_depth: int = 3, max_files_per_dir: int = 15) -> list[str]:
+#     """Recursively builds a tree representation of the codebase."""
+
+#     import fnmatch
+
+#     if depth > max_depth:
+#         return []
+
+#     tree = []
+#     full_path = os.path.join(start_dir, current_dir) if current_dir else start_dir
+
+#     try:
+#         items = sorted(os.listdir(full_path))
+#     except Exception as e:
+#         logger.warning(f"Failded to list dir {full_path}: {e}")
+#         return []
+
+#     filtered_items = []
+#     for item in items:
+#         if any(fnmatch.fnmatch(item, pattern) for pattern in IGNORE_DIRS | IGNORE_FILES) or item in IGNORE_DIRS or item in IGNORE_FILES:
+#             continue
+#         filtered_items.append(item)
+        
+#     total_items = len(filtered_items)
+#     if total_items > max_files_per_dir:
+#         display_items = filtered_items[:max_files_per_dir]
+#         truncated_count = total_items - max_files_per_dir
+#     else:
+#         display_items = filtered_items
+#         truncated_count = 0
+
+        
+
+#         rel_item_path = os.path.join(current_dir, item) if current_dir else item
+#         item_full_path = os.path.join(start_dir, rel_item_path)
+
+#         indent = "  " * depth
+#         if os.path.isdir(item_full_path):
+#             tree.append(f"{indent} {item}")
+#             tree.extend(generate_file_tree(start_dir, rel_item_path, depth + 1, max_depth))
+#         else:
+#             tree.append(f"{indent} {item}")
+    
+#     return tree
+
+def generate_file_tree(start_dir: str, current_dir: str = "", depth: int = 0, max_depth: int = 3, max_files_per_dir: int = 15) -> list[str]:
+    """Recursively builds a tree representation of the codebase, collapsing large directories."""
+    import fnmatch
 
     if depth > max_depth:
         return []
@@ -21,21 +67,39 @@ def generate_file_tree(start_dir: str, current_dir: str = "", depth: int = 0, ma
         logger.warning(f"Failded to list dir {full_path}: {e}")
         return []
 
+    # 1. Resolve wildcard pattern matches (e.g. *.log, *.pyc)
+    filtered_items = []
     for item in items:
-        if item in IGNORE_DIRS or item in IGNORE_FILES:
+        if any(fnmatch.fnmatch(item, pattern) for pattern in IGNORE_DIRS | IGNORE_FILES) or item in IGNORE_DIRS or item in IGNORE_FILES:
             continue
+        filtered_items.append(item)
 
+    # 2. Collapse directories if they contain too many files
+    total_items = len(filtered_items)
+    if total_items > max_files_per_dir:
+        display_items = filtered_items[:max_files_per_dir]
+        truncated_count = total_items - max_files_per_dir
+    else:
+        display_items = filtered_items
+        truncated_count = 0
+
+    for item in display_items:
         rel_item_path = os.path.join(current_dir, item) if current_dir else item
         item_full_path = os.path.join(start_dir, rel_item_path)
 
         indent = "  " * depth
         if os.path.isdir(item_full_path):
-            tree.append(f"{indent} {item}")
-            tree.extend(generate_file_tree(start_dir, rel_item_path, depth + 1, max_depth))
+            tree.append(f"{indent} 📁 {item}/")
+            tree.extend(generate_file_tree(start_dir, rel_item_path, depth + 1, max_depth, max_files_per_dir))
         else:
-            tree.append(f"{indent} {item}")
+            tree.append(f"{indent} 📄 {item}")
+            
+    if truncated_count > 0:
+        indent = "  " * depth
+        tree.append(f"{indent} ... (+ {truncated_count} more files/folders)")
     
     return tree
+
 
 def detect_languages_and_configs(dir_path: str) -> dict[str, Any]:
     """Detect likely programming languages and setup configs in repo."""
@@ -96,9 +160,9 @@ def read_key_file(repo_dir: str, filename: str) -> str:
 
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f: 
-            content = f.read(8192)  # cap at 8KB
+            content = f.read(262144)  # cap at 256KB
 
-            if len(content) == 8192:
+            if len(content) == 262144:
                 content += "\n... [Truncated due to size]"
 
             return content

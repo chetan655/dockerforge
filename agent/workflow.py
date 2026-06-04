@@ -14,7 +14,8 @@ from agent.tools import (
     read_file_content,
     write_dockerfile_to_disk,
     build_docker_image_tool,
-    verify_container_tool
+    verify_container_tool,
+    write_docker_compose_to_disk
 )
 from utils.logger import logger
 
@@ -34,6 +35,10 @@ To do this, you MUST follow this sequence:
 1. Call 'analyze_repo' on the repository path to understand the codebase layout, languages, and dependencies.
 2. Analyze the file tree, languages, and key configurations. If you need to read a specific configuration file in detail that wasn't fully printed, call 'read_file_content'.
 3. Formulate a Dockerfile applying these DevOps best practices depending on the project type:
+
+    --- DEPENDENCY ANALYSIS ---
+   - Analyze the complete dependency manifest and lockfile content (e.g. package-lock.json, cargo.lock, uv.lock, go.sum) when available. Inspect transitive dependencies to identify if native compiler binaries (like node-gyp, python-dev) or specific system libraries (like libssl, musl) are required for the build stage.
+
 
    --- LAYER CACHING (All Projects) ---
    - Always copy dependency manifests first (e.g. package.json, requirements.txt, go.mod, Cargo.toml, pom.xml, Gemfile) and run the install command before copying the rest of the source code.
@@ -64,6 +69,10 @@ To do this, you MUST follow this sequence:
    - If it is, you MUST include `EXPOSE <port>` and configure the server to listen on `0.0.0.0` (not localhost or 127.0.0.1) so that traffic can pass through the container.
    - If the application is a CLI tool, background worker, script, or daemon, do NOT expose ports.
 
+    --- DATABASE & SERVICE ORCHESTRATION ---
+   - If the repository analysis indicates that the application depends on external services (such as PostgreSQL, MySQL, Redis, MongoDB) to run, call `write_docker_compose_to_disk` to generate a `docker-compose.yml` that configures these backing services alongside your application container.
+
+
 4. Write the Dockerfile to the repository path using 'write_dockerfile_to_disk'.
 5. Build the Docker image by calling 'build_docker_image_tool'.
 6. If the build fails, analyze the error logs carefully, write a corrected Dockerfile to disk using 'write_dockerfile_to_disk', and rebuild using 'build_docker_image_tool'. You have a strict limit of 3 build attempts.
@@ -76,16 +85,17 @@ To do this, you MUST follow this sequence:
 
 def get_agent():
 
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = os.getenv("OPEN_ROUTER_API_KEY")
     if not api_key:
-        raise ValueError("GROQ_API_KEY is not set in your environment or .env file.")
+        raise ValueError("OPEN_ROUTER_API_KEY is not set in your environment or .env file.")
 
     tools = [
         analyze_repo,
         read_file_content,
         write_dockerfile_to_disk,
         build_docker_image_tool,
-        verify_container_tool
+        verify_container_tool,
+        write_docker_compose_to_disk
     ]
 
     # model = ChatGroq(
@@ -98,7 +108,8 @@ def get_agent():
     # )
     model = ChatOpenRouter(
     model="deepseek/deepseek-v4-flash",
-    temperature=0.8,
+    temperature=0.0,
+    api_key=api_key
 )
 
     agent = create_agent(
@@ -118,10 +129,9 @@ async def run_agent(repo_path: str) -> str:
     input_text = f"Generate and verify a working Dockerfile for the repository located at `{repo_path}`"
 
     try:
-
         inputs = {"messages": [HumanMessage(content=input_text)]}
-        
         final_output = ""
+        printed_tool_calls = set()
 
         async for chunk, metadata in agent.astream(inputs, stream_mode="messages"):
             if isinstance(chunk, (AIMessage, AIMessageChunk)):
@@ -131,19 +141,34 @@ async def run_agent(repo_path: str) -> str:
                 if chunk.tool_calls:
                     for tool_call in chunk.tool_calls:
                         tool_name = tool_call["name"]
+                        tool_id = tool_call.get("id")
+                        
+                        if not tool_id or tool_id in printed_tool_calls:
+                            continue
+                            
                         if tool_name == "analyze_repo":
                             console.print("[cyan]🤖 Agent is scanning the repository layout...[/cyan]")
+                            printed_tool_calls.add(tool_id)
                         elif tool_name == "read_file_content":
-                            file_name = tool_call["args"].get("rel_path", "config")
-                            console.print(f"[cyan]🤖 Agent is reading the content of [bold]{file_name}[/bold]...[/cyan]")
+                            file_name = tool_call["args"].get("rel_path")
+                            if file_name:
+                                console.print(f"[cyan]🤖 Agent is reading the content of [bold]{file_name}[/bold]...[/cyan]")
+                                printed_tool_calls.add(tool_id)
                         elif tool_name == "write_dockerfile_to_disk":
                             console.print("[cyan]🤖 Agent is writing the generated Dockerfile...[/cyan]")
+                            printed_tool_calls.add(tool_id)
                         elif tool_name == "build_docker_image_tool":
                             console.print("[cyan]🤖 Agent is triggering a local Docker build...[/cyan]")
+                            printed_tool_calls.add(tool_id)
                         elif tool_name == "verify_container_tool":
                             console.print("[cyan]🤖 Agent is launching the container to verify it starts...[/cyan]")
+                            printed_tool_calls.add(tool_id)
+                        elif tool_name == "write_docker_compose_to_disk":
+                            console.print("[cyan]🤖 Agent is writing a docker-compose.yml configuration...[/cyan]")
+                            printed_tool_calls.add(tool_id)
                             
         return final_output
+
     except Exception as e:
         logger.error(f"Agent execution encountered an error: {e}")
         raise e

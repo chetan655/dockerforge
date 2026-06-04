@@ -1,8 +1,11 @@
 import time
 import docker
 from typing import Any
+from rich.console import Console
 
 from utils.logger import logger
+
+console = Console()
 
 # def build_docker_image(repo_dir: str, tag: str = "dockerforge-temp:latest") -> tuple[bool, str]:
 #     """Builds a docker image in the specified dir.
@@ -268,7 +271,9 @@ def run_and_verify_container(tag: str = "dockerforge-temp:latest", run_duration_
     finally:
         if container:
             try:
+                console.print("[cyan]]🤖 Cleaning up verification container...[/cyan]")
                 container.stop(timeout=2)
                 container.remove()
+                console.print("[green]✔ Container cleaned up successfully.[/green]")
             except Exception as e:
                 logger.error(f"Error cleaning up container: {e}")
