@@ -1,4 +1,4 @@
-.PHONY: install run clean lint
+.PHONY: install run clean lint docker-build docker-run
 
 install:
 	uv sync
@@ -15,3 +15,11 @@ clean:
 lint:
 	uvx ruff check .
 	uvx ruff format --check .
+
+# Build the Docker image in one step
+docker-build:
+	docker build -t dockerforge .
+
+# Run the Docker image in one step (for standard Linux/macOS)
+docker-run:
+	docker run -it -v /var/run/docker.sock:/var/run/docker.sock --env-file .env dockerforge

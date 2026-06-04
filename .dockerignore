@@ -1,0 +1,6 @@
+.env
+.venv
+.tmp_repos
+.git
+__pycache__
+*.log
